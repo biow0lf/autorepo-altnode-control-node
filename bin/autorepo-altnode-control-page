@@ -17,7 +17,10 @@ my @repocop=qw/fail warn info experimantal ok/;
 
 my $tmpl_src =q{
 <html>
-<head><title><TMPL_VAR NAME="HEAD"></title></head>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf8">
+<meta http-equiv="refresh" content="600">
+<title><TMPL_VAR NAME="HEAD"></title></head>
 <body>
 <TMPL_IF NAME="H1"><h1><TMPL_VAR NAME="H1"></h1></TMPL_IF>
 <hr/>
