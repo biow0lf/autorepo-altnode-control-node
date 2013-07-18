@@ -11,6 +11,7 @@ use Cwd;
 #my $TEST2RPM=Data::Array2ArrayMap::Hash::XSTree->new();
 my $img_dir='';
 my $file='index.htm';
+$file=$ARGV[0] if @ARGV;
 my $verbose=0;
 my @repocop=qw/fail warn info experimantal ok/;
 
@@ -29,7 +30,6 @@ my $tmpl_src =q{
 <th>type</th>
 <th>last run</th>
 <th>summary</th>
-<th></th>
 </tr>
 <TMPL_LOOP NAME=VM_NODES>
 <tr>
@@ -38,7 +38,6 @@ my $tmpl_src =q{
 <td><TMPL_IF NAME="type"><TMPL_VAR NAME="type"></TMPL_IF></td>
 <td><TMPL_VAR NAME="datastring"></td>
 <td><TMPL_IF NAME="summary"><TMPL_VAR NAME="summary"><TMPL_ELSE>&nbsp;</TMPL_IF></td>
-<td></td>
 </tr>
 </TMPL_LOOP>
 </table>
@@ -51,16 +50,6 @@ my $tmpl_src =q{
 
 my $a=q{
 <table border="1">
-<TMPL_LOOP NAME=TABLEHEADER>
-<tr>
-<TMPL_IF NAME="BALL"><th><TMPL_VAR NAME="BALL"></th></TMPL_IF>
-<TMPL_IF NAME="C1"><th><TMPL_VAR NAME="C1"></th></TMPL_IF>
-<TMPL_IF NAME="C2"><th><TMPL_VAR NAME="C2"></th></TMPL_IF>
-<TMPL_IF NAME="C3"><th><TMPL_VAR NAME="C3"></th></TMPL_IF>
-<TMPL_IF NAME="C4"><th><TMPL_VAR NAME="C4"></th></TMPL_IF>
-<TMPL_IF NAME="C5"><th><TMPL_VAR NAME="C5"></th></TMPL_IF>
-</tr>
-</TMPL_LOOP> 
 <TMPL_LOOP NAME=TABLEBODY>
 <tr>
 <TMPL_IF NAME="BALL"><td><img src="}.$img_dir.q{<TMPL_VAR NAME="BALL">.png"></td></TMPL_IF>
@@ -74,7 +63,7 @@ my $a=q{
 </table>
 };
 
-my $header='Public status page';
+my $header='Automated Package Maintainance Cluster Public status page';
 my $mirrordir='mirror';
 my $curdir=getcwd;
 chdir $mirrordir;
@@ -128,12 +117,15 @@ sub load_vm {
 	}
 	my $type=$node->{'type'};
 	my $summary='&nbsp;-&nbsp;';
-	if ($type eq 'repocop') {
-	    $summary=$node->{'repository'}.': '.$node->{'repocop_summary'};
-	} elsif ($type eq 'builder') {
-	    $summary=$node->{'repository'}.': '.$node->{'builder_summary'};
-	} elsif ($type eq 'misc') {
-	    $summary=$node->{'misc_summary'};
+	if ($type) {
+	    if ($type eq 'repocop') {
+		$summary='bugs found in '.$node->{'repository'}.': '.$node->{'repocop_summary'};
+	    } elsif ($type eq 'builder') {
+		$summary=$node->{'repository'}.': packages: '.$node->{'builder_summary'};
+	    } elsif ($type eq 'misc') {
+		$summary=$node->{'misc_summary'};
+		$summary.=' packages need update' if $vmdir eq 'watch.altlinux.org' and $name eq 'watch';
+	    }
 	}
 	if ($node->{'relative_path'}) {
 	    $summary='<a href="http://'.$vmdir.'/'.$node->{'relative_path'}.'">'.$summary.'</a>';
@@ -159,7 +151,7 @@ sub load_builder_summary {
 	push @content,"$arch: $num";
     }
     close ($fh) || die "can't close $name: $!";
-    return join(' ',@content);
+    return join(' | ',@content);
 }
 
 sub load_repocop_summary {

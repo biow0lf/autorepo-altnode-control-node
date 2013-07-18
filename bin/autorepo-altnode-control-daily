@@ -1,0 +1,4 @@
+#!/bin/sh -e
+
+autorepo-mirror-node `cat $HOME/nodes` 2>&1 > mirror.log
+autorepo-altnode-control-page /var/ftp/pub/monitor/index.htm
