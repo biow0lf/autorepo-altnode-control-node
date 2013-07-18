@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for i in $@; do
+    mkdir -p mirror/$i
+    rsync -avp --delete-after rsync://$i/altnode mirror/$i/
+done

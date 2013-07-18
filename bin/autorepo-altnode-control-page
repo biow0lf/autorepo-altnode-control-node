@@ -1,0 +1,201 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+#use Data::Array2ArrayMap::Hash::XSTree;
+#use File::Path;
+use File::Basename;
+use HTML::Template::Pro;
+use Cwd;
+
+#my $TEST2RPM=Data::Array2ArrayMap::Hash::XSTree->new();
+my $img_dir='';
+my $file='index.htm';
+my $verbose=0;
+my @repocop=qw/fail warn info experimantal ok/;
+
+my $tmpl_src =q{
+<html>
+<head><title><TMPL_VAR NAME="HEAD"></title></head>
+<body>
+<TMPL_IF NAME="H1"><h1><TMPL_VAR NAME="H1"></h1></TMPL_IF>
+<hr/>
+<TMPL_LOOP NAME=VM_LOOP>
+<TMPL_VAR NAME="VM_NAME">
+<table border="1">
+<tr>
+<th>status</th>
+<th>name</th>
+<th>type</th>
+<th>last run</th>
+<th>summary</th>
+<th></th>
+</tr>
+<TMPL_LOOP NAME=VM_NODES>
+<tr>
+<td><TMPL_IF NAME="status"><TMPL_VAR NAME="status"></TMPL_IF></td>
+<td><TMPL_IF NAME="name"><TMPL_VAR NAME="name"></TMPL_IF></td>
+<td><TMPL_IF NAME="type"><TMPL_VAR NAME="type"></TMPL_IF></td>
+<td><TMPL_VAR NAME="datastring"></td>
+<td><TMPL_IF NAME="summary"><TMPL_VAR NAME="summary"><TMPL_ELSE>&nbsp;</TMPL_IF></td>
+<td></td>
+</tr>
+</TMPL_LOOP>
+</table>
+</TMPL_LOOP> 
+<hr/>
+<TMPL_VAR NAME="BOTTOM_COMMENT">
+</body>
+</html>
+};
+
+my $a=q{
+<table border="1">
+<TMPL_LOOP NAME=TABLEHEADER>
+<tr>
+<TMPL_IF NAME="BALL"><th><TMPL_VAR NAME="BALL"></th></TMPL_IF>
+<TMPL_IF NAME="C1"><th><TMPL_VAR NAME="C1"></th></TMPL_IF>
+<TMPL_IF NAME="C2"><th><TMPL_VAR NAME="C2"></th></TMPL_IF>
+<TMPL_IF NAME="C3"><th><TMPL_VAR NAME="C3"></th></TMPL_IF>
+<TMPL_IF NAME="C4"><th><TMPL_VAR NAME="C4"></th></TMPL_IF>
+<TMPL_IF NAME="C5"><th><TMPL_VAR NAME="C5"></th></TMPL_IF>
+</tr>
+</TMPL_LOOP> 
+<TMPL_LOOP NAME=TABLEBODY>
+<tr>
+<TMPL_IF NAME="BALL"><td><img src="}.$img_dir.q{<TMPL_VAR NAME="BALL">.png"></td></TMPL_IF>
+<TMPL_IF NAME="C1"><td><TMPL_VAR NAME="C1"></td></TMPL_IF>
+<TMPL_IF NAME="C2"><td><TMPL_VAR NAME="C2"></td></TMPL_IF>
+<TMPL_IF NAME="C3"><td><TMPL_VAR NAME="C3"></td></TMPL_IF>
+<TMPL_IF NAME="C4"><td><TMPL_VAR NAME="C4"></td></TMPL_IF>
+<TMPL_IF NAME="C5"><td><TMPL_VAR NAME="C5"></td></TMPL_IF>
+</tr>
+</TMPL_LOOP> 
+</table>
+};
+
+my $header='Public status page';
+my $mirrordir='mirror';
+my $curdir=getcwd;
+chdir $mirrordir;
+my @vm=glob("*.*.*");
+chdir $curdir;
+my @vm_loop;
+foreach my $vm (@vm) {
+    my $vm_entry={VM_NAME=> $vm};
+    my @nodes=&load_vm($vm);
+    $vm_entry->{VM_NODES}=\@nodes;
+    push @vm_loop, $vm_entry;
+}
+
+open (CURFILE, ">", $file); #, print_to=>*CURFILE does not work :(
+my $tmpl = HTML::Template::Pro->new(scalarref => \$tmpl_src);
+$tmpl->param(HEAD=>$header);
+$tmpl->param(H1=>$header);
+$tmpl->param(VM_LOOP=>\@vm_loop);
+$tmpl->param(BOTTOM_COMMENT=>'last updated '.localtime());
+
+print CURFILE $tmpl->output();
+close (CURFILE);
+
+sub _copy_images {
+    my $dirprefix=shift;
+    my $dir=$dirprefix.'/'.$img_dir;
+    mkpath([$dir]);
+    foreach my $img (qw/fail warn info experimental ok/) {
+	system('cp','/usr/share/repocop/html/'.$img.'.png',$dir)==0 or warn "copy /usr/share/repocop/html/${img}.png $dir failed: $!";
+    }
+}
+
+sub load_vm {
+    my ($vmdir)=@_;
+    my $curdir=getcwd;
+    chdir "$mirrordir/$vmdir";
+    my @nodelist=glob("*");
+    my @nodes;
+    foreach my $name (@nodelist) {
+	my @fields=glob("$name/*");
+	my $node={name=> $name};
+	foreach my $field (@fields) {
+	    my $key=basename($field);
+	    if ($key eq 'repocop_summary') {
+		$node->{$key}=&load_repocop_summary($field);
+	    } elsif ($key eq 'builder_summary') {
+		$node->{$key}=&load_builder_summary($field);
+	    } else {
+		$node->{$key}=&load_line($field);
+	    }
+	}
+	my $type=$node->{'type'};
+	my $summary='&nbsp;-&nbsp;';
+	if ($type eq 'repocop') {
+	    $summary=$node->{'repository'}.': '.$node->{'repocop_summary'};
+	} elsif ($type eq 'builder') {
+	    $summary=$node->{'repository'}.': '.$node->{'builder_summary'};
+	} elsif ($type eq 'misc') {
+	    $summary=$node->{'misc_summary'};
+	}
+	if ($node->{'relative_path'}) {
+	    $summary='<a href="http://'.$vmdir.'/'.$node->{'relative_path'}.'">'.$summary.'</a>';
+	}
+	$node->{'summary'}=$summary;
+
+	push @nodes, $node;
+    }
+    chdir $curdir;
+    return @nodes;
+}
+
+
+sub load_builder_summary {
+    my ($name)=@_;
+    open (my $fh, '<', $name) || die "can't open $name: $!";
+    my @content;
+    my $line;
+    while (defined ($line=<$fh>)) {
+	chomp $line;
+	next if $line=~/^\s*$/;
+	my ($arch,$num)=split(/\s+/,$line);
+	push @content,"$arch: $num";
+    }
+    close ($fh) || die "can't close $name: $!";
+    return join(' ',@content);
+}
+
+sub load_repocop_summary {
+    my ($name)=@_;
+    open (my $fh, '<', $name) || die "can't open $name: $!";
+    my @content;
+    my $i=0;
+    my $line;
+    while (defined ($line=<$fh>)) {
+	chomp $line;
+	next if $line=~/^\s*$/;
+	push @content,$repocop[$i++].': '.$line;
+    }
+    close ($fh) || die "can't close $name: $!";
+    return join(' ',@content);
+}
+
+
+sub load_file {
+    my ($name)=@_;
+    open (my $fh, '<', $name) || die "can't open $name: $!";
+    local $/; # enable localized slurp mode
+    my $content = <$fh>;
+    close ($fh) || die "can't close $name: $!";
+    return $content;
+}
+
+sub load_line {
+    my ($name)=@_;
+    open (my $fh, '<', $name) || die "can't open $name: $!";
+    my $content = <$fh>;
+    chomp $content;
+    close ($fh) || die "can't close $name: $!";
+    return $content;
+}
+
+
+print "done.\n" if $verbose;
+
