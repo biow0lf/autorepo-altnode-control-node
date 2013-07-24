@@ -16,37 +16,42 @@ my $verbose=0;
 my @repocop=qw/fail warn info experimantal ok/;
 
 my $tmpl_src =q{
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta http-equiv="content-type" content="text/html; charset=utf8">
-<meta http-equiv="refresh" content="600">
-<title><TMPL_VAR NAME="HEAD"></title></head>
+  <meta http-equiv="content-type" content="text/html; charset=utf8">
+  <meta http-equiv="refresh" content="600">
+  <title><TMPL_VAR NAME="HEAD"></title>
+  <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.no-icons.min.css" rel="stylesheet">
+</head>
 <body>
+<div class="container">
 <TMPL_IF NAME="H1"><h1><TMPL_VAR NAME="H1"></h1></TMPL_IF>
-<hr/>
+<hr>
 <TMPL_LOOP NAME=VM_LOOP>
-<TMPL_VAR NAME="VM_NAME">
-<table border="1">
+<table class="table table-bordered table-striped table-hover">
+<caption><TMPL_VAR NAME="VM_NAME"></caption>
 <tr>
-<th>status</th>
-<th>name</th>
-<th>type</th>
-<th>last run</th>
-<th>summary</th>
+<th style="text-align: center">status</th>
+<th style="text-align: center">name</th>
+<th style="text-align: center">type</th>
+<th style="text-align: center">last run</th>
+<th style="text-align: center">summary</th>
 </tr>
 <TMPL_LOOP NAME=VM_NODES>
 <tr>
-<td><TMPL_IF NAME="status"><TMPL_VAR NAME="status"></TMPL_IF></td>
-<td><TMPL_IF NAME="name"><TMPL_VAR NAME="name"></TMPL_IF></td>
-<td><TMPL_IF NAME="type"><TMPL_VAR NAME="type"></TMPL_IF></td>
-<td><TMPL_VAR NAME="datastring"></td>
+<td style="text-align: center"><TMPL_IF NAME="status"><TMPL_VAR NAME="status"></TMPL_IF></td>
+<td style="text-align: center"><TMPL_IF NAME="name"><TMPL_VAR NAME="name"></TMPL_IF></td>
+<td style="text-align: center"><TMPL_IF NAME="type"><TMPL_VAR NAME="type"></TMPL_IF></td>
+<td style="text-align: center"><TMPL_VAR NAME="datastring"></td>
 <td><TMPL_IF NAME="summary"><TMPL_VAR NAME="summary"><TMPL_ELSE>&nbsp;</TMPL_IF></td>
 </tr>
 </TMPL_LOOP>
 </table>
 </TMPL_LOOP> 
-<hr/>
-<TMPL_VAR NAME="BOTTOM_COMMENT">
+<hr>
+<p><TMPL_VAR NAME="BOTTOM_COMMENT"></p>
+</div>
 </body>
 </html>
 };
